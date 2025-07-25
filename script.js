@@ -9,16 +9,124 @@ $(document).ready(function () {
    console.log("Saved data:", JSON.stringify(data));
  }
 
+let mainTitles = Object.keys(data);
 
-  function refreshMainView() {
-    $("#mainTitleContainer").html('');
-    $('<div class="mainTitle addTitle">+</div>').appendTo("#mainTitleContainer");
-    for (let title in data) {
-      const titleDiv = $('<div class="mainTitle">').text(title);
-      titleDiv.on("click", () => openTitle(title));
-      $("#mainTitleContainer").append(titleDiv);
-    }
-  }
+
+function refreshMainView() {
+  $("#mainTitleContainer").html(`
+    <div id="mainTitleControls">
+      <button id="addTitle">+</button>
+      <button id="renameTitle">$</button>
+      <button id="deleteTitle">-</button>
+      <button id="moveLeft">←</button>
+      <button id="moveRight">→</button>
+    </div>
+  `);
+
+  mainTitles.forEach((title) => {
+    const wrapper = $('<div class="mainTitleWrapper"></div>');
+    const checkbox = $('<input type="checkbox" class="mainTitleCheckbox" />');
+    const titleDiv = $('<div class="mainTitle">')
+      .text(title)
+      .attr("contenteditable", "true");
+
+    titleDiv.on("blur", function () {
+      const oldName = title;
+      const newName = $(this).text().trim();
+      if (newName && newName !== oldName) {
+        data[newName] = data[oldName];
+        delete data[oldName];
+        const idx = mainTitles.indexOf(oldName);
+        if (idx !== -1) mainTitles[idx] = newName;
+      }
+      saveData();
+      refreshMainView();
+    });
+
+    titleDiv.on("click", function (e) {
+      const isChecked = $(this).siblings(".mainTitleCheckbox").prop("checked");
+      if (isChecked) {
+        e.stopPropagation();
+        return;
+      }
+      openTitle(title);
+    });
+
+    wrapper.append(checkbox, titleDiv);
+    $("#mainTitleContainer").append(wrapper);
+  });
+}
+
+
+
+
+$(document).on("click", "#addTitle", function () {
+  const newTitle = "New Title";
+  data[newTitle] = {};
+  mainTitles.push(newTitle);
+  saveData();
+  refreshMainView();
+});
+
+
+
+
+
+ $(document).on("click", "#renameTitle", function () {
+   const selected = $(".mainTitleCheckbox:checked")
+     .closest(".mainTitleWrapper")
+     .find(".mainTitle");
+   selected.attr("contenteditable", "true").focus();
+ });
+
+$(document).on("click", "#deleteTitle", function () {
+  $(".mainTitleCheckbox:checked").each(function () {
+    const title = $(this).siblings(".mainTitle").text().trim();
+    delete data[title];
+    mainTitles = mainTitles.filter((t) => t !== title);
+  });
+  saveData();
+  refreshMainView();
+});
+
+
+ $(document).on("click", "#moveLeft", function () {
+   const wrappers = $(".mainTitleWrapper");
+   wrappers.each(function (i) {
+     const cb = $(this).find(".mainTitleCheckbox");
+     if (cb.prop("checked") && i > 0) {
+       $(this).insertBefore(wrappers.eq(i - 1));
+       reorderData();
+       return false; // only move first checked one
+     }
+   });
+   saveData();
+ });
+
+ $(document).on("click", "#moveRight", function () {
+   const wrappers = $(".mainTitleWrapper");
+   wrappers.each(function (i) {
+     const cb = $(this).find(".mainTitleCheckbox");
+     if (cb.prop("checked") && i < wrappers.length - 1) {
+       $(this).insertAfter(wrappers.eq(i + 1));
+       reorderData();
+       return false; // only move first checked one
+     }
+   });
+   saveData();
+ });
+ function reorderData() {
+   const newData = {};
+   $(".mainTitleWrapper .mainTitle").each(function () {
+     const t = $(this).text().trim();
+     if (data[t]) newData[t] = data[t];
+   });
+   data = newData;
+ }
+
+
+
+
 
   function openTitle(title) {
      currentTitle = title;
@@ -335,12 +443,21 @@ function renderSubTitles() {
 
 
   $("#mainTitleContainer").on("click", ".addTitle", function () {
-    const newTitle = prompt("New title name:");
-    if (!newTitle) return;
+    const newTitle = "";
     data[newTitle] = {};
     saveData();
     refreshMainView();
+
+    const newDiv = $("#mainTitleContainer")
+      .find(".mainTitle")
+      .filter(function () {
+        return $(this).text().trim() === "";
+      });
+
+    newDiv.attr("contenteditable", "true").focus();
   });
+
+
 
   $("#selectedMainTitle").on("click", function () {
     $("#titleView").addClass("hidden");
@@ -348,5 +465,70 @@ function renderSubTitles() {
     refreshMainView();
   });
 
+  $("#moveLeft").on("click", function () {
+    const selected = $(".mainTitle.selected");
+    if (selected.length && !selected.hasClass("addTitle")) {
+      const prev = selected.prev(".mainTitle");
+      if (prev.length && !prev.hasClass("addTitle")) {
+        prev.before(selected);
+        reorderTitles();
+      }
+    }
+  });
+
+  $("#moveRight").on("click", function () {
+    const selected = $(".mainTitle.selected");
+    if (selected.length && !selected.hasClass("addTitle")) {
+      const next = selected.next(".mainTitle");
+      if (next.length) {
+        next.after(selected);
+        reorderTitles();
+      }
+    }
+  });
+
+  function reorderTitles() {
+    const newData = {};
+    $("#mainTitleContainer .mainTitle").each(function () {
+      const title = $(this).text().trim();
+      if (title && title !== "+") {
+        newData[title] = data[title];
+      }
+    });
+    data = newData;
+    saveData();
+  }
+
+
+
   refreshMainView();
+  $("#renameTitle").on("click", function () {
+    const checked = $(".mainTitleCheckbox:checked");
+    if (checked.length !== 1) {
+      alert("Select exactly one title to rename.");
+      return;
+    }
+    const oldTitle = checked.next(".mainTitle").text();
+    const newTitle = prompt("New title name:", oldTitle);
+    if (!newTitle || newTitle === oldTitle) return;
+
+    data[newTitle] = data[oldTitle];
+    delete data[oldTitle];
+    saveData();
+    refreshMainView();
+  });
+
+  $("#deleteTitle").on("click", function () {
+    $(".mainTitleCheckbox:checked").each(function () {
+      const title = $(this).next(".mainTitle").text();
+      delete data[title];
+    });
+    saveData();
+    refreshMainView();
+  });
+
+
+
+
+
 });
