@@ -206,9 +206,9 @@ function renderSubTitles() {
       if (!currentSub || !(currentSub in data[currentTitle])) return;
       const item = createItem();
       const list = data[currentTitle][currentSub];
-      list.unshift({ value: "", state: "" });
+      list.push({ value: "", state: "" });
       saveData();
-      item.prependTo(itemColumn);
+      item.appendTo(itemColumn);
       item.find(".itemInput").focus();
     });
 
