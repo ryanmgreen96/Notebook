@@ -129,17 +129,26 @@ $(document).on("click", "#deleteTitle", function () {
 
 
   function openTitle(title) {
-     currentTitle = title;
-     if (!data[currentTitle]) {
-       data[currentTitle] = {};
-       saveData();
-     }
+    currentTitle = title;
+    if (!data[currentTitle]) {
+      data[currentTitle] = {};
+      saveData();
+    }
     $("#mainView").addClass("hidden");
     $("#titleView").removeClass("hidden");
     $("#selectedMainTitle").val(title);
     renderSubTitles();
-    showEmptyListArea();
+
+    // Retrieve last opened sublist for this title
+    const lastSub = localStorage.getItem("lastOpenSub_" + currentTitle);
+
+    if (lastSub && data[currentTitle][lastSub]) {
+      showSubList(lastSub);
+    } else {
+      showEmptyListArea();
+    }
   }
+
 
 function renderSubTitles() {
   const subs = data[currentTitle] || {};
@@ -253,6 +262,7 @@ function renderSubTitles() {
 
   function showSubList(sub) {
     currentSub = sub;
+    localStorage.setItem("lastOpenSub_" + currentTitle, sub);
     const listWrapper = $(`<div class="subList" style="display: flex;"></div>`);
     const controlBar = $(`
       <div class="controlBar">
