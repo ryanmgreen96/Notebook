@@ -154,7 +154,12 @@ function renderSubTitles() {
   const subs = data[currentTitle] || {};
   const subRow = $("#subTitleRow").empty();
 
+  let firstSub = null;
+  let lastOpenedSub = localStorage.getItem("lastOpenedSub_" + currentTitle);
+
   for (let sub in subs) {
+    if (!firstSub) firstSub = sub;
+
     const span = $(
       `<span class="subTitle" contenteditable="true">${sub}</span>`
     );
@@ -162,6 +167,8 @@ function renderSubTitles() {
     span.on("click", () => {
       $(".subTitle").removeClass("selected");
       span.addClass("selected");
+      currentSub = sub;
+      localStorage.setItem("lastOpenedSub_" + currentTitle, sub);
       showSubList(sub);
     });
 
@@ -179,8 +186,22 @@ function renderSubTitles() {
     });
 
     subRow.append(span);
+
+    if (sub === lastOpenedSub) {
+      span.addClass("selected");
+      currentSub = sub;
+      showSubList(sub);
+    }
+  }
+
+  // If no match found for lastOpenedSub, fall back to first sub
+  if (!lastOpenedSub && firstSub) {
+    currentSub = firstSub;
+    $(`.subTitle:contains("${firstSub}")`).addClass("selected");
+    showSubList(firstSub);
   }
 }
+
 
 
 
@@ -290,7 +311,7 @@ function renderSubTitles() {
    controlBar.find(".addItem").on("click", () => {
      if (!currentSub || !(currentSub in data[currentTitle])) return;
      const list = data[currentTitle][currentSub];
-     list.unshift({ value: "", state: "" }); // add empty item
+     list.push({ value: "", state: "" }); // adds item at the bottom
      saveData();
      showSubList(currentSub); // rerender list to include new item properly
    });
@@ -355,6 +376,8 @@ function renderSubTitles() {
 
     $("#subListContainer").html('');
     listWrapper.append(controlBar, itemColumn).appendTo("#subListContainer");
+    localStorage.setItem("lastOpenedSub_" + currentTitle, sub);
+
   }
 
   
