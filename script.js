@@ -355,8 +355,9 @@ function renderSubTitles() {
       '<div class="checkbox" style="border: 1px solid #ccc; width: 12px; height: 12px; margin-right: 6px;"></div>'
     );
   const input = $(
-    '<textarea class="itemInput" rows="1" style="font-size: 113%; outline: none;"></textarea>'
+    '<textarea spellcheck="false" class="itemInput" rows="1" style="font-size: 113%; outline: none;"></textarea>'
   ).val(itemData.value);
+
 
    checkbox.removeClass("red green"); // clear any previous
    if (itemData.state === "red") {
