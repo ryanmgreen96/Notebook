@@ -184,7 +184,7 @@ function renderSubTitles() {
         <button class="controlButton createList">//</button>
         <button class="controlButton addItem">+</button>
         <button class="controlButton deleteItems">-</button>
-        <button class="controlButton deleteList">X</button>
+         <button class="controlButton collapseAll">#</button>
       </div>
     `);
     const itemColumn = $('<div class="itemColumn"></div>');
@@ -259,7 +259,7 @@ function renderSubTitles() {
         <button class="controlButton createList">//</button>
         <button class="controlButton addItem">+</button>
         <button class="controlButton deleteItems">-</button>
-        <button class="controlButton deleteList">X</button>
+         <button class="controlButton collapseAll">#</button>
       </div>
     `);
     const itemColumn = $('<div class="itemColumn"></div>');
@@ -284,6 +284,15 @@ function renderSubTitles() {
      saveData();
      showSubList(currentSub); // rerender list to include new item properly
    });
+
+   controlBar.find(".collapseAll").on("click", () => {
+     data[currentTitle][currentSub].forEach((item) => {
+       item.state = "green";
+     });
+     saveData();
+     showSubList(currentSub);
+   });
+
 
 
 
@@ -389,10 +398,13 @@ function renderSubTitles() {
 
     // Adjust textarea height on input
     input.on("input", function () {
+      const scrollY = window.scrollY;
       this.style.height = "auto";
       this.style.height = this.scrollHeight + "px";
       updateData();
+      window.scrollTo(0, scrollY);
     });
+
 
     input.on("blur", updateData);
 
