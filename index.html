@@ -24,7 +24,32 @@
         <div id="subListContainer"></div>
     </div>
 
-    <script src="script.js"></script>
+  
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDdln3K1UOv19w1tLXKa-DGGXyBVC0ZmHs",
+        authDomain: "notebook-80d4c.firebaseapp.com",
+        projectId: "notebook-80d4c",
+        storageBucket: "notebook-80d4c.appspot.com",
+        messagingSenderId: "454815163343",
+        appId: "1:454815163343:web:0e4e968cc3bb194b7ca8ba"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Make db global for script.js
+    window.db = db;
+</script>
+
+<script type="module" src="script.js"></script>
+
+
+
+
 </body>
 
 </html>
