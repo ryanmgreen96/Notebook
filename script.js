@@ -16,6 +16,12 @@ let _lastSavePromise = Promise.resolve();
 function saveData() {
   if (_saveTimeout) clearTimeout(_saveTimeout);
   _saveTimeout = setTimeout(async () => {
+    try {
+      if (window && window.mainTitles) data.__mainOrder = window.mainTitles.slice();
+    } catch (e) {}
+    try {
+      if (window && window.mainTitles) localStorage.setItem('mainOrder', JSON.stringify(window.mainTitles));
+    } catch (e) {}
     const payload = { notesAppData: data };
     // Chain saves to keep order (last call will run after previous resolves)
     _lastSavePromise = _lastSavePromise.then(() =>
@@ -45,7 +51,28 @@ $(document).ready(async function () {
 
   let currentTitle = null;
   let currentSub = null;
-  let mainTitles = Object.keys(data);
+  // Prefer localStorage order, then Firestore __mainOrder, merged with actual keys.
+  let mainTitles = [];
+  try {
+    const local = JSON.parse(localStorage.getItem('mainOrder') || 'null');
+    if (Array.isArray(local)) {
+      local.forEach((t) => {
+        if (t !== "__mainOrder" && Object.prototype.hasOwnProperty.call(data, t) && !mainTitles.includes(t)) mainTitles.push(t);
+      });
+    }
+  } catch (e) {}
+  if (mainTitles.length === 0 && data && Array.isArray(data.__mainOrder)) {
+    data.__mainOrder.forEach((t) => {
+      if (t !== "__mainOrder" && Object.prototype.hasOwnProperty.call(data, t) && !mainTitles.includes(t)) {
+        mainTitles.push(t);
+      }
+    });
+  }
+  Object.keys(data).forEach((k) => {
+    if (k !== "__mainOrder" && !mainTitles.includes(k)) mainTitles.push(k);
+  });
+  // Expose for saveData so it can persist order
+  window.mainTitles = mainTitles;
 
   // ------------------ MAIN VIEW ------------------
   function refreshMainView() {
@@ -75,6 +102,7 @@ $(document).ready(async function () {
           const idx = mainTitles.indexOf(oldName);
           if (idx !== -1) mainTitles[idx] = newName;
         }
+        window.mainTitles = mainTitles;
         saveData();
         refreshMainView();
       });
@@ -100,6 +128,7 @@ $(document).ready(async function () {
     const newTitle = "New Title";
     data[newTitle] = { "🏠 Home": [] }; // Default Home list
     mainTitles.push(newTitle);
+    window.mainTitles = mainTitles;
     saveData();
     refreshMainView();
   });
@@ -116,6 +145,7 @@ $(document).ready(async function () {
       const title = $(this).siblings(".mainTitle").text().trim();
       delete data[title];
       mainTitles = mainTitles.filter((t) => t !== title);
+      window.mainTitles = mainTitles;
     });
     saveData();
     refreshMainView();
@@ -149,11 +179,17 @@ $(document).ready(async function () {
 
   function reorderData() {
     const newData = {};
+    const newOrder = [];
     $(".mainTitleWrapper .mainTitle").each(function () {
       const t = $(this).text().trim();
-      if (data[t]) newData[t] = data[t];
+      if (data[t]) {
+        newData[t] = data[t];
+        newOrder.push(t);
+      }
     });
     data = newData;
+    mainTitles = newOrder;
+    window.mainTitles = mainTitles;
   }
 
   // ------------------ OPEN TITLE ------------------
