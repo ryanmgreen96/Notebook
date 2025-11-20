@@ -57,19 +57,113 @@ $(document).ready(async function () {
     const local = JSON.parse(localStorage.getItem('mainOrder') || 'null');
     if (Array.isArray(local)) {
       local.forEach((t) => {
-        if (t !== "__mainOrder" && Object.prototype.hasOwnProperty.call(data, t) && !mainTitles.includes(t)) mainTitles.push(t);
+        if (!(t && t.startsWith && t.startsWith('__')) && Object.prototype.hasOwnProperty.call(data, t) && !mainTitles.includes(t)) mainTitles.push(t);
       });
     }
   } catch (e) {}
   if (mainTitles.length === 0 && data && Array.isArray(data.__mainOrder)) {
     data.__mainOrder.forEach((t) => {
-      if (t !== "__mainOrder" && Object.prototype.hasOwnProperty.call(data, t) && !mainTitles.includes(t)) {
+      if (!(t && t.startsWith && t.startsWith('__')) && Object.prototype.hasOwnProperty.call(data, t) && !mainTitles.includes(t)) {
         mainTitles.push(t);
       }
     });
   }
+
+  // ------------------ UNDER-MAIN SHARED LIST ------------------
+  function renderUnderMain() {
+    const container = $('#mainPageContainer');
+    if (!container.length) return;
+    container.html('');
+
+    const listWrapper = $(`<div class="subList" style="display:flex; align-items:flex-start; margin-top:8px;"></div>`);
+    const controlBar = $(
+      `<div class="controlBar">
+        <button class="controlButton addAbove">^</button>
+        <button class="controlButton addItem">+</button>
+        <button class="controlButton deleteItems">-</button>
+        <button class="controlButton collapseAll">#</button>
+      </div>`
+    );
+    const itemColumn = $('<div class="itemColumn"></div>');
+
+    const list = data.__mainPage || [];
+    list.forEach((itemData, i) => {
+      const item = createUnderItem(itemData, i);
+      item.appendTo(itemColumn);
+    });
+
+    controlBar.find('.addAbove').on('click', () => {
+      const idx = (data.__mainPage || []).findIndex(it => it.state === 'yellow');
+      if (idx >= 0 && idx > 0) {
+        const arr = data.__mainPage;
+        [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+      } else {
+        data.__mainPage.unshift({ value: '', state: '' });
+      }
+      saveData(); renderUnderMain();
+    });
+    controlBar.find('.addItem').on('click', () => {
+      const idx = (data.__mainPage || []).findIndex(it => it.state === 'yellow');
+      if (idx >= 0 && idx < data.__mainPage.length - 1) {
+        const arr = data.__mainPage;
+        [arr[idx], arr[idx+1]] = [arr[idx+1], arr[idx]];
+      } else {
+        data.__mainPage.push({ value: '', state: '' });
+      }
+      saveData(); renderUnderMain();
+    });
+    controlBar.find('.collapseAll').on('click', () => {
+      (data.__mainPage || []).forEach(it => it.state = 'green');
+      saveData(); renderUnderMain();
+    });
+    controlBar.find('.deleteItems').on('click', () => {
+      data.__mainPage = (data.__mainPage || []).filter(it => it.state !== 'red');
+      saveData(); renderUnderMain();
+    });
+
+    listWrapper.append(controlBar, itemColumn).appendTo(container);
+  }
+
+  function createUnderItem(itemData = { value: '', state: '' }, index) {
+    const itemRow = $('<div class="itemRow"></div>');
+    const checkbox = $("<div class='checkbox' style='border:1px solid #ccc; width:12px; height:12px; margin-right:6px;'></div>");
+    const input = $("<textarea spellcheck='false' class='itemInput' rows='1' style='font-size:113%; outline:none;'></textarea>").val(itemData.value);
+
+    checkbox.removeClass('red green yellow');
+    if (itemData.state === 'red') checkbox.addClass('red');
+    else if (itemData.state === 'green') { checkbox.addClass('green'); input.addClass('collapsed'); }
+    else if (itemData.state === 'yellow') checkbox.addClass('yellow');
+    checkbox.data('state', itemData.state || '');
+
+    checkbox.on('click', function() {
+      checkbox.removeClass('red green yellow');
+      let currentState = checkbox.data('state');
+      if (currentState === '') { checkbox.data('state','green').addClass('green'); input.addClass('collapsed').css('height','2.8em'); }
+      else if (currentState === 'green') { checkbox.data('state','red').addClass('red'); input.removeClass('collapsed').css('height','auto'); input[0].style.height = input[0].scrollHeight + 'px'; }
+      else if (currentState === 'red') { $('.checkbox.yellow').removeClass('yellow').data('state',''); checkbox.data('state','yellow').addClass('yellow'); }
+      else { checkbox.data('state',''); input.removeClass('collapsed').css('height','auto'); input[0].style.height = input[0].scrollHeight + 'px'; }
+      update();
+    });
+
+    input.on('dblclick', function(){ this.select(); });
+    input.on('input', function() { this.style.height='auto'; this.style.height = this.scrollHeight + 'px'; update(); });
+    input.on('blur', update);
+
+    function update() {
+      const idx = itemRow.parent().children().index(itemRow);
+      if (!data.__mainPage) data.__mainPage = [];
+      if (!data.__mainPage[idx]) data.__mainPage[idx] = { value:'', state: '' };
+      data.__mainPage[idx].value = input.val();
+      data.__mainPage[idx].state = checkbox.hasClass('green') ? 'green' : checkbox.hasClass('red') ? 'red' : checkbox.hasClass('yellow') ? 'yellow' : '';
+      saveData();
+    }
+
+    itemRow.append(checkbox, input);
+    setTimeout(()=>{ input[0].style.height='auto'; input[0].style.height = input[0].scrollHeight + 'px'; },0);
+    return itemRow;
+  }
   Object.keys(data).forEach((k) => {
-    if (k !== "__mainOrder" && !mainTitles.includes(k)) mainTitles.push(k);
+    if (!(k && k.startsWith && k.startsWith('__')) && !mainTitles.includes(k)) mainTitles.push(k);
   });
   // Expose for saveData so it can persist order
   window.mainTitles = mainTitles;
@@ -200,6 +294,7 @@ $(document).ready(async function () {
       saveData();
     }
     $("#mainView").addClass("hidden");
+    $("#mainPageContainer").addClass("hidden");
     $("#titleView").removeClass("hidden");
     $("#selectedMainTitle").val(title);
     renderSubTitles();
@@ -476,9 +571,12 @@ $(document).ready(async function () {
     $("#titleView").addClass("hidden");
     $("#mainView").removeClass("hidden");
     refreshMainView();
+    $("#mainPageContainer").removeClass("hidden");
+    renderUnderMain();
   });
 
   refreshMainView();
+  renderUnderMain();
 });
 
 
