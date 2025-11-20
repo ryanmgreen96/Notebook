@@ -47,7 +47,13 @@ async function loadData() {
 }
 
 $(document).ready(async function () {
-  await loadData();
+  try {
+    await loadData();
+    console.log('loadData: OK');
+  } catch (err) {
+    console.error('loadData: failed, continuing with empty data object', err);
+    data = data || {};
+  }
 
   let currentTitle = null;
   let currentSub = null;
