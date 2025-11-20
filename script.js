@@ -8,9 +8,27 @@ import {
   setDoc,
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-async function saveData() {
-  await setDoc(doc(window.db, "data", "shared"), { notesAppData: data });
-  console.log("Saved to Firebase:", data);
+// Debounced save to avoid concurrent setDoc race conditions that can
+// cause partial/older writes to overwrite newer ones. scheduleSave
+// delays writes slightly and coalesces rapid updates into one write.
+let _saveTimeout = null;
+let _lastSavePromise = Promise.resolve();
+function saveData() {
+  if (_saveTimeout) clearTimeout(_saveTimeout);
+  _saveTimeout = setTimeout(async () => {
+    const payload = { notesAppData: data };
+    // Chain saves to keep order (last call will run after previous resolves)
+    _lastSavePromise = _lastSavePromise.then(() =>
+      setDoc(doc(window.db, "data", "shared"), payload)
+    );
+    try {
+      await _lastSavePromise;
+      console.log("Saved to Firebase: (lengths)");
+    } catch (err) {
+      console.error("Error saving to Firebase:", err);
+    }
+    _saveTimeout = null;
+  }, 250);
 }
 
 async function loadData() {
@@ -395,6 +413,10 @@ $(document).ready(async function () {
       if (!list[index]) list[index] = { value: "", state: "" };
 
       list[index].value = input.val();
+      // Debug: log length so we can detect truncation issues in console
+      try {
+        console.log(`updateData: item ${index} length=${list[index].value.length}`);
+      } catch (e) {}
       list[index].state = checkbox.hasClass("green")
         ? "green"
         : checkbox.hasClass("red")
